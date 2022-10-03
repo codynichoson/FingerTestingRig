@@ -12,12 +12,13 @@ find_package(ament_cmake REQUIRED)
 # find_package(<dependency> REQUIRED)
 
 find_package(rclcpp REQUIRED)
+find_package(std_msgs REQUIRED)
 
 add_executable(motion_control src/motion_control.cpp)
-ament_target_dependencies(motion_control rclcpp)
+ament_target_dependencies(motion_control rclcpp std_msgs)
 
 add_executable(vision src/vision.cpp)
-ament_target_dependencies(vision rclcpp)
+ament_target_dependencies(vision rclcpp std_msgs)
 
 install(TARGETS
   motion_control
