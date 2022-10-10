@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<launch>
+    <!-- Launch Allied Vision ROS2 driver node -->
+    <include file="$(find-pkg-share avt_vimba_camera)/launch/mono_camera.launch.xml"/>
+
+    <!-- Launch motion control node -->
+    <node pkg="finger_rig_control" exec="vision" name="vision"/>
+</launch>
