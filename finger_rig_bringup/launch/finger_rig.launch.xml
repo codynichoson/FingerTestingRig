@@ -5,4 +5,7 @@
 
     <!-- Launch motion control node -->
     <node pkg="finger_rig_control" exec="vision" name="vision"/>
+
+    <!-- Launch Rviz -->
+    <node pkg="rviz2" exec="rviz2" args="-d $(find-pkg-share finger_rig_description)/rviz/finger_rig.rviz"/>
 </launch>
