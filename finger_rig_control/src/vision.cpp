@@ -15,7 +15,7 @@ class Vision : public rclcpp::Node
     // Constructor
     Vision() : Node("vision")
     {
-      image_sub_ = this->create_subscription<sensor_msgs::msg::Image>("/camera/image", 10, std::bind(&Vision::topic_callback, this, _1));
+      image_sub_ = this->create_subscription<sensor_msgs::msg::Image>("/camera/image", 10, std::bind(&Vision::image_callback, this, _1));
       cv::namedWindow("Image Window");
     }
 
@@ -26,8 +26,8 @@ class Vision : public rclcpp::Node
     }
 
   private:
-    // void topic_callback(const sensor_msgs::msg::Image::SharedPtr msg) const
-    void topic_callback(const sensor_msgs::msg::Image::SharedPtr msg) const
+    // void image_callback(const sensor_msgs::msg::Image::SharedPtr msg) const
+    void image_callback(const sensor_msgs::msg::Image::SharedPtr msg) const
     {
       // Display image characteristics
       // RCLCPP_INFO(this->get_logger(),
@@ -38,12 +38,13 @@ class Vision : public rclcpp::Node
       // Convert ROS sensor_msgs/Image to OpenCV pointer type
       // CvImagePtr cv_bridge::toCvCopy(const sensor_msgs::ImageConstPtr& msg, const std::string& encoding = std::string());
       // CvImagePtr cv_bridge::toCvCopy(const sensor_msgs::msg::Image& msg, const std::string& encoding = std::string());
-      cv_bridge::CvImagePtr *cv_img_ptr = NULL;
+      // cv_bridge::CvImagePtr cv_img_ptr = NULL;
+      cv_bridge::CvImagePtr cv_img_ptr;
 
-      *cv_img_ptr = cv_bridge::toCvCopy(msg, msg->encoding);
+      cv_img_ptr = cv_bridge::toCvCopy(msg, msg->encoding);
 
-      // cv::cvShowImage("Image Window", *cv_img_ptr);
-      // cv::waitKey(3);
+      cv::cvShowImage("Image Window", *cv_img_ptr);
+      cv::waitKey(3);
     }
     
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_sub_;
