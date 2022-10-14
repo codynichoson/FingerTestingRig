@@ -5,8 +5,9 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/objdetect/objdetect.hpp>
 #include <opencv2/highgui/highgui.hpp>
+#include <std_srvs/srv/empty.hpp>
 
-using std::placeholders::_1;
+using std::placeholders::_1, std::placeholders::_2;
 
 /// \brief Vision node class
 class Vision : public rclcpp::Node
@@ -15,7 +16,12 @@ class Vision : public rclcpp::Node
     // Constructor
     Vision() : Node("vision")
     {
+      // Create image subscriber
       image_sub_ = this->create_subscription<sensor_msgs::msg::Image>("/camera/image", 10, std::bind(&Vision::image_callback, this, _1));
+
+      // Create viewing service
+      view_srv_ = create_service<std_srvs::srv::Empty>("view_camera", std::bind(&Vision::view_srv_callback, this, _1, _2));
+
       cv::namedWindow("Image Window");
     }
 
@@ -26,28 +32,36 @@ class Vision : public rclcpp::Node
     }
 
   private:
-    // void image_callback(const sensor_msgs::msg::Image::SharedPtr msg) const
+  // Initialize subscribers
+    rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_sub_;
+
+    // Initialize services
+    rclcpp::Service<std_srvs::srv::Empty>::SharedPtr view_srv_;
+
     void image_callback(const sensor_msgs::msg::Image::SharedPtr msg) const
     {
-      // Display image characteristics
-      // RCLCPP_INFO(this->get_logger(),
-      //   "Right Rectified image received from ZED\tSize: %dx%d - Timestamp: %u.%u sec ",
-      //   msg->width, msg->height,
-      //   msg->header.stamp.sec,msg->header.stamp.nanosec);
-
-      // Convert ROS sensor_msgs/Image to OpenCV pointer type
-      // CvImagePtr cv_bridge::toCvCopy(const sensor_msgs::ImageConstPtr& msg, const std::string& encoding = std::string());
-      // CvImagePtr cv_bridge::toCvCopy(const sensor_msgs::msg::Image& msg, const std::string& encoding = std::string());
-      // cv_bridge::CvImagePtr cv_img_ptr = NULL;
       cv_bridge::CvImagePtr cv_img_ptr;
 
-      cv_img_ptr = cv_bridge::toCvCopy(msg, msg->encoding);
+      try
+      {
+        cv_img_ptr = cv_bridge::toCvCopy(msg, msg->encoding);
+      }
+      catch(cv_bridge::Exception& e)
+      {
+        RCLCPP_ERROR(this->get_logger(), "cv_bridge exception: %s", e.what());
+        return;
+      }
 
-      cv::cvShowImage("Image Window", *cv_img_ptr);
+      cv::imshow("Image Window", cv_img_ptr->image);
       cv::waitKey(3);
     }
+
+    void view_srv_callback(const std::shared_ptr<std_srvs::srv::Empty::Request>, std::shared_ptr<std_srvs::srv::Empty::Response>)
+    {
+      RCLCPP_INFO(this->get_logger(), "THIS IS A SERVICE!");
+    }
     
-    rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_sub_;
+    
     
 };
 

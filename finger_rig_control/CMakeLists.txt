@@ -16,12 +16,13 @@ find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(OpenCV REQUIRED)
+find_package(std_srvs REQUIRED)
 
 add_executable(motion_control src/motion_control.cpp)
 ament_target_dependencies(motion_control rclcpp std_msgs)
 
 add_executable(vision src/vision.cpp)
-ament_target_dependencies(vision rclcpp std_msgs sensor_msgs cv_bridge OpenCV)
+ament_target_dependencies(vision rclcpp std_msgs sensor_msgs cv_bridge OpenCV std_srvs)
 
 install(TARGETS
   motion_control
