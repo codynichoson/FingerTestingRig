@@ -19,10 +19,11 @@ class Vision : public rclcpp::Node
       // Create image subscriber
       image_sub_ = this->create_subscription<sensor_msgs::msg::Image>("/camera/image", 10, std::bind(&Vision::image_callback, this, _1));
 
-      // Create viewing service
-      view_srv_ = create_service<std_srvs::srv::Empty>("view_camera", std::bind(&Vision::view_srv_callback, this, _1, _2));
+      // Create services
+      stream_srv_ = create_service<std_srvs::srv::Empty>("stream_camera", std::bind(&Vision::stream_srv_callback, this, _1, _2));
+      capture_img_srv_ = create_service<std_srvs::srv::Empty>("capture_image", std::bind(&Vision::capture_img_srv_callback, this, _1, _2));
 
-      cv::namedWindow("Image Window");
+      cv::namedWindow("Image Window");      
     }
 
     // Destructor
@@ -36,12 +37,15 @@ class Vision : public rclcpp::Node
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_sub_;
 
     // Initialize services
-    rclcpp::Service<std_srvs::srv::Empty>::SharedPtr view_srv_;
+    rclcpp::Service<std_srvs::srv::Empty>::SharedPtr stream_srv_;
+    rclcpp::Service<std_srvs::srv::Empty>::SharedPtr capture_img_srv_;
 
-    void image_callback(const sensor_msgs::msg::Image::SharedPtr msg) const
+    // Initialize variables
+    cv_bridge::CvImagePtr cv_img_ptr;
+    cv::Mat img_mat;
+
+    void image_callback(const sensor_msgs::msg::Image::SharedPtr msg)
     {
-      cv_bridge::CvImagePtr cv_img_ptr;
-
       try
       {
         cv_img_ptr = cv_bridge::toCvCopy(msg, msg->encoding);
@@ -52,17 +56,36 @@ class Vision : public rclcpp::Node
         return;
       }
 
-      cv::imshow("Image Window", cv_img_ptr->image);
-      cv::waitKey(3);
+      // Convert cv_bridge pointer to cv image matrix
+      img_mat = cv_img_ptr->image;
     }
 
-    void view_srv_callback(const std::shared_ptr<std_srvs::srv::Empty::Request>, std::shared_ptr<std_srvs::srv::Empty::Response>)
+    void stream_srv_callback(const std::shared_ptr<std_srvs::srv::Empty::Request>, std::shared_ptr<std_srvs::srv::Empty::Response>)
     {
-      RCLCPP_INFO(this->get_logger(), "THIS IS A SERVICE!");
+      RCLCPP_INFO(this->get_logger(), "Streaming from camera.");
+
+      while(true){
+        cv::imshow("Image Window", cv_img_ptr->image);
+        cv::waitKey(3);
+      }
     }
-    
-    
-    
+
+    void capture_img_srv_callback(const std::shared_ptr<std_srvs::srv::Empty::Request>, std::shared_ptr<std_srvs::srv::Empty::Response>)
+    {
+      RCLCPP_INFO(this->get_logger(), "Capturing image.");
+
+      // Save image in /images directory in working directory
+      bool check = cv::imwrite("images/MyImage.jpg", img_mat);
+        
+      // Check if image was successfully saved
+      if (check == false) {
+        RCLCPP_ERROR(this->get_logger(), "Image failed to save.");
+      }
+      else{
+        RCLCPP_ERROR(this->get_logger(), "Image successfully saved.");
+      }
+        
+    }
 };
 
 int main(int argc, char * argv[])
