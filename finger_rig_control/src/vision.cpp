@@ -33,7 +33,7 @@ class Vision : public rclcpp::Node
     }
 
   private:
-  // Initialize subscribers
+    // Initialize subscribers
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_sub_;
 
     // Initialize services
@@ -42,7 +42,7 @@ class Vision : public rclcpp::Node
 
     // Initialize variables
     cv_bridge::CvImagePtr cv_img_ptr;
-    cv::Mat img_mat;
+    cv::Mat color_img;
 
     void image_callback(const sensor_msgs::msg::Image::SharedPtr msg)
     {
@@ -56,18 +56,18 @@ class Vision : public rclcpp::Node
         return;
       }
 
-      // Convert cv_bridge pointer to cv image matrix
-      img_mat = cv_img_ptr->image;
+      // Get CV image matrix by dereferencing image within cv_bridge pointer
+      color_img = cv_img_ptr->image;
     }
 
     void stream_srv_callback(const std::shared_ptr<std_srvs::srv::Empty::Request>, std::shared_ptr<std_srvs::srv::Empty::Response>)
     {
-      RCLCPP_INFO(this->get_logger(), "Streaming from camera.");
+      RCLCPP_INFO(this->get_logger(), "Streaming service called.");
 
-      while(true){
-        cv::imshow("Image Window", cv_img_ptr->image);
-        cv::waitKey(3);
-      }
+      // while(true){
+      // cv::imshow("Image Window", cv_img_ptr->image);
+      // cv::waitKey(3);
+      // }
     }
 
     void capture_img_srv_callback(const std::shared_ptr<std_srvs::srv::Empty::Request>, std::shared_ptr<std_srvs::srv::Empty::Response>)
@@ -75,7 +75,9 @@ class Vision : public rclcpp::Node
       RCLCPP_INFO(this->get_logger(), "Capturing image.");
 
       // Save image in /images directory in working directory
-      bool check = cv::imwrite("images/MyImage.jpg", img_mat);
+      bool check = cv::imwrite("images/color.jpg", color_img);
+
+      find_circles(color_img);
         
       // Check if image was successfully saved
       if (check == false) {
@@ -84,7 +86,42 @@ class Vision : public rclcpp::Node
       else{
         RCLCPP_ERROR(this->get_logger(), "Image successfully saved.");
       }
+    }
+
+    void find_circles(cv::Mat img)
+    {
+      cv::Mat gray_img;
+      cv::cvtColor(img, gray_img, cv::COLOR_RGB2GRAY);
+
+      cv::medianBlur(gray_img, gray_img, 5);
+
+      std::vector<cv::Vec3f> circles;
+
+      cv::HoughCircles(gray_img, circles, cv::HOUGH_GRADIENT, 2, 5, 100, 100, 0, 1000);
+
+      RCLCPP_INFO(this->get_logger(), "Circles detected: %d", circles.size());
+
+      for(std::size_t i = 0; i < circles.size(); i++)
+      {
+        cv::Vec3i c = circles[i];
+        cv::Point center = cv::Point(c[0], c[1]);
+        // circle center
+        circle(img, center, 1, cv::Scalar(0,100,100), 3, cv::LINE_AA);
+        // circle outline
+        int radius = c[2];
+        circle(img, center, radius, cv::Scalar(255,0,255), 3, cv::LINE_AA);
+      }
+
+      // Save image in /images directory in working directory
+      bool check = cv::imwrite("images/circles.jpg", img);
         
+      // Check if image was successfully saved
+      if (check == false) {
+        RCLCPP_ERROR(this->get_logger(), "Image failed to save.");
+      }
+      else{
+        RCLCPP_ERROR(this->get_logger(), "Image successfully saved.");
+      }
     }
 };
 
