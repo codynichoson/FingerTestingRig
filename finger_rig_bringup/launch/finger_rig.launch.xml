@@ -1,5 +1,19 @@
 <?xml version="1.0"?>
 <launch>
+
+    <node pkg="tf2_ros" exec="static_transform_publisher" name="virtual_joint_broadcaster_1" args="0 0 0 0 0 0 world panda_link0" />
+    
+    <!-- FOR RUNNING SIMULATION ROBOT -->
+    <!-- <include file="$(find-pkg-share franka_moveit_config)/launch/moveit.launch.py">
+        <arg name="robot_ip" value="dont-care"/>
+        <arg name="use_fake_hardware" value="true"/>
+    </include> -->
+    <!-- <include file="$(find-pkg-share franka_bringup)/launch/franka.launch.py">
+        <arg name="robot_ip" value="dont-care"/>
+        <arg name="use_fake_hardware" value="true"/> -->
+        <!-- <arg name="use_rviz" value="true"/> -->
+    <!-- </include> -->
+
     <!-- Launch Allied Vision ROS2 driver node -->
     <include file="$(find-pkg-share avt_vimba_camera)/launch/mono_camera.launch.xml"/>
 

@@ -11,6 +11,13 @@
 
   <exec_depend>finger_rig_control</exec_depend>
   <exec_depend>finger_rig_description</exec_depend>
+  <exec_depend>panda_moveit_config</exec_depend>
+
+  <build_depend>moveit_msgs</build_depend>
+  <build_depend>moveit_commander</build_depend>
+
+  <build_export_depend>moveit_msgs</build_export_depend>
+  <build_export_depend>moveit_commander</build_export_depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
