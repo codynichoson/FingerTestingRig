@@ -6,6 +6,7 @@ from launch.actions import (DeclareLaunchArgument, ExecuteProcess, IncludeLaunch
                             Shutdown)
 from launch.conditions import IfCondition, UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch_xml.launch_description_sources import XMLLaunchDescriptionSource
 from launch.substitutions import Command, FindExecutable, LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
@@ -241,6 +242,16 @@ def generate_launch_description():
         launch_arguments={'robot_ip': robot_ip,
                           use_fake_hardware_parameter_name: use_fake_hardware}.items(),
     )
+
+    camera_launch_file = IncludeLaunchDescription(
+        XMLLaunchDescriptionSource(
+            os.path.join(
+                get_package_share_directory("avt_vimba_camera"),
+                "launch/mono_camera.launch.xml",
+            )
+        )
+    )
+
     return LaunchDescription(
         [robot_arg,
          use_fake_hardware_arg,
@@ -254,7 +265,8 @@ def generate_launch_description():
          static_tf_node,
          mongodb_server_node,
          joint_state_publisher,
-         gripper_launch_file
+         gripper_launch_file,
+         camera_launch_file
          ]
         + load_controllers
     )
