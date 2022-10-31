@@ -38,8 +38,6 @@ MotionControl::MotionControl() : Node("motion_control"), move_group_(std::shared
   home_srv_ = create_service<std_srvs::srv::Empty>("home", std::bind(&MotionControl::home_srv_callback, this, _1, _2));
   extend_srv_ = create_service<std_srvs::srv::Empty>("extend", std::bind(&MotionControl::extend_srv_callback, this, _1, _2));
 
-  RCLCPP_INFO(this->get_logger(), "BLAH BLAH BLAH.");
-
   // Use upper joint velocity and acceleration limits
   this->move_group_.setMaxAccelerationScalingFactor(1.0);
   this->move_group_.setMaxVelocityScalingFactor(1.0);
@@ -51,8 +49,7 @@ void MotionControl::home_srv_callback(const std::shared_ptr<std_srvs::srv::Empty
 {
   RCLCPP_INFO(this->get_logger(), "Home service called.");
 
-  // Plan and execute motion
-  // this->move_group_.setPoseTarget(msg->pose);
+  // Set named target for home pose and execute
   this->move_group_.setNamedTarget("ready");
   this->move_group_.move();
 }
@@ -60,6 +57,10 @@ void MotionControl::home_srv_callback(const std::shared_ptr<std_srvs::srv::Empty
 void MotionControl::extend_srv_callback(const std::shared_ptr<std_srvs::srv::Empty::Request>, std::shared_ptr<std_srvs::srv::Empty::Response>)
 {
   RCLCPP_INFO(this->get_logger(), "Extend service called.");
+
+  // Set named target for extended pose and execute
+  this->move_group_.setNamedTarget("extended");
+  this->move_group_.move();
 }
 
 int main(int argc, char * argv[])
