@@ -231,11 +231,13 @@ def generate_launch_description():
         use_fake_hardware_parameter_name,
         default_value='false',
         description='Use fake hardware')
+
     fake_sensor_commands_arg = DeclareLaunchArgument(
         fake_sensor_commands_parameter_name,
         default_value='false',
         description="Fake sensor commands. Only valid when '{}' is true".format(
             use_fake_hardware_parameter_name))
+
     gripper_launch_file = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([PathJoinSubstitution(
             [FindPackageShare('franka_gripper'), 'launch', 'gripper.launch.py'])]),
@@ -252,6 +254,22 @@ def generate_launch_description():
         )
     )
 
+    # Nodes
+    # vision_node = Node(
+    #     package="finger_rig_control",
+    #     executable="vision",
+    # )
+
+    motion_control_node = Node(
+        package="finger_rig_control",
+        executable="motion_control",
+        output="log",
+        parameters=[
+            robot_description,
+            robot_description_semantic,
+        ]
+    )
+
     return LaunchDescription(
         [robot_arg,
          use_fake_hardware_arg,
@@ -266,7 +284,9 @@ def generate_launch_description():
          mongodb_server_node,
          joint_state_publisher,
          gripper_launch_file,
-         camera_launch_file
+        #  camera_launch_file,
+        #  vision_node,
+         motion_control_node
          ]
         + load_controllers
     )
