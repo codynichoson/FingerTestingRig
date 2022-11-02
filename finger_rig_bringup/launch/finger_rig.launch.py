@@ -255,10 +255,10 @@ def generate_launch_description():
     )
 
     # Nodes
-    # vision_node = Node(
-    #     package="finger_rig_control",
-    #     executable="vision",
-    # )
+    vision_node = Node(
+        package="finger_rig_control",
+        executable="vision",
+    )
 
     motion_control_node = Node(
         package="finger_rig_control",
@@ -284,8 +284,8 @@ def generate_launch_description():
          mongodb_server_node,
          joint_state_publisher,
          gripper_launch_file,
-        #  camera_launch_file,
-        #  vision_node,
+         camera_launch_file,
+         vision_node,
          motion_control_node
          ]
         + load_controllers
