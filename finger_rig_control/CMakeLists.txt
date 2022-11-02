@@ -18,25 +18,17 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
   cv_bridge
   OpenCV
   std_srvs
-  # moveit_core
-  # moveit_msgs
   moveit_ros_planning_interface
+  finger_rig_msgs
+  # rosidl_default_generators
 )
-
-# find_package(rclcpp REQUIRED)
-# find_package(std_msgs REQUIRED)
-# find_package(sensor_msgs REQUIRED)
-# find_package(cv_bridge REQUIRED)
-# find_package(OpenCV REQUIRED)
-# find_package(std_srvs REQUIRED)
 
 foreach(Dependency IN ITEMS ${THIS_PACKAGE_INCLUDE_DEPENDS})
   find_package(${Dependency} REQUIRED)
 endforeach()
 
-
 add_executable(motion_control src/motion_control.cpp)
-ament_target_dependencies(motion_control rclcpp std_msgs std_srvs moveit_ros_planning_interface)
+ament_target_dependencies(motion_control rclcpp std_msgs std_srvs moveit_ros_planning_interface finger_rig_msgs)
 
 add_executable(vision src/vision.cpp)
 ament_target_dependencies(vision rclcpp std_msgs sensor_msgs cv_bridge OpenCV std_srvs)
@@ -46,6 +38,10 @@ install(TARGETS
   vision
   DESTINATION lib/${PROJECT_NAME}
 )
+
+# rosidl_generate_interfaces(${PROJECT_NAME}
+#   "srv/GoToPose.srv"
+# )
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
