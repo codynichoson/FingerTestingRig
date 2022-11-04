@@ -223,18 +223,20 @@ def generate_launch_description():
         parameters=[
             {'source_list': ['franka/joint_states', 'panda_gripper/joint_states'], 'rate': 30}],
     )
+    
     robot_arg = DeclareLaunchArgument(
         robot_ip_parameter_name,
+        default_value='dont-care',
         description='Hostname or IP address of the robot.')
 
     use_fake_hardware_arg = DeclareLaunchArgument(
         use_fake_hardware_parameter_name,
-        default_value='false',
+        default_value='true',
         description='Use fake hardware')
 
     fake_sensor_commands_arg = DeclareLaunchArgument(
         fake_sensor_commands_parameter_name,
-        default_value='false',
+        default_value='true',
         description="Fake sensor commands. Only valid when '{}' is true".format(
             use_fake_hardware_parameter_name))
 
