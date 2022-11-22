@@ -21,12 +21,16 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
   moveit_ros_planning_interface
   moveit_msgs
   finger_rig_msgs
+  shape_msgs
   # rosidl_default_generators
 )
 
 foreach(Dependency IN ITEMS ${THIS_PACKAGE_INCLUDE_DEPENDS})
   find_package(${Dependency} REQUIRED)
 endforeach()
+
+add_executable(environment src/environment.cpp)
+ament_target_dependencies(environment rclcpp std_msgs std_srvs moveit_ros_planning_interface moveit_msgs finger_rig_msgs shape_msgs)
 
 add_executable(motion_control src/motion_control.cpp)
 ament_target_dependencies(motion_control rclcpp std_msgs std_srvs moveit_ros_planning_interface moveit_msgs finger_rig_msgs)
@@ -35,6 +39,7 @@ add_executable(vision src/vision.cpp)
 ament_target_dependencies(vision rclcpp std_msgs sensor_msgs cv_bridge OpenCV std_srvs)
 
 install(TARGETS
+  environment
   motion_control
   vision
   DESTINATION lib/${PROJECT_NAME}

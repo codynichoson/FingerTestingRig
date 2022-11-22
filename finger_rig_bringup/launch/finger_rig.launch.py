@@ -256,9 +256,13 @@ def generate_launch_description():
     )
 
     # Nodes
-    vision_node = Node(
+    environment_node = Node(
         package="finger_rig_control",
-        executable="vision",
+        executable="environment",
+        parameters=[
+            robot_description,
+            robot_description_semantic,
+        ]
     )
 
     motion_control_node = Node(
@@ -269,6 +273,11 @@ def generate_launch_description():
             robot_description,
             robot_description_semantic,
         ]
+    )
+
+    vision_node = Node(
+        package="finger_rig_control",
+        executable="vision"
     )
 
     return LaunchDescription(
@@ -286,8 +295,9 @@ def generate_launch_description():
          joint_state_publisher,
          gripper_launch_file,
          camera_launch_file,
-         vision_node,
-         motion_control_node
+         environment_node,
+         motion_control_node,
+         vision_node
          ]
         + load_controllers
     )
