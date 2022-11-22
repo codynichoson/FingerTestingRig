@@ -157,7 +157,6 @@ def generate_launch_description():
         package='controller_manager',
         executable='ros2_control_node',
         parameters=[robot_description, ros2_controllers_path],
-        remappings=[('joint_states', 'franka/joint_states')],
         condition=UnlessCondition(use_fake_hardware),
         output={
             'stdout': 'screen',
@@ -175,7 +174,6 @@ def generate_launch_description():
         package='controller_manager',
         executable='ros2_control_node',
         parameters=[robot_description, ros2_mock_path],
-        remappings=[('joint_states', 'franka/joint_states')],
         condition=IfCondition(use_fake_hardware),
         output={
             'stdout': 'screen',
@@ -221,7 +219,8 @@ def generate_launch_description():
         executable='joint_state_publisher',
         name='joint_state_publisher',
         parameters=[
-            {'source_list': ['franka/joint_states', 'panda_gripper/joint_states'], 'rate': 30}],
+            # {'source_list': ['franka/joint_states', 'panda_gripper/joint_states'], 'rate': 30}]
+            {'source_list': ['/joint_states', 'panda_gripper/joint_states'], 'rate': 30}]
     )
     
     robot_arg = DeclareLaunchArgument(

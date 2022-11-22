@@ -8,27 +8,24 @@
 
 using std::placeholders::_1, std::placeholders::_2;
 
-const std::string MOVE_GROUP = "panda_arm";
+const std::string MOVE_GROUP = "panda_manipulator";
 
 class MotionControl : public rclcpp::Node
 {
   public:
     MotionControl();
 
-    /// Move group interface for the robot
+    // Move group interface for the robot
     moveit::planning_interface::MoveGroupInterface move_group_;
 
   private:
-    // Initialize publisher
-    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr publisher_;
-
     // Initialize services
     rclcpp::Service<std_srvs::srv::Empty>::SharedPtr home_srv_;
     rclcpp::Service<std_srvs::srv::Empty>::SharedPtr extend_srv_;
     rclcpp::Service<finger_rig_msgs::srv::GoToPose>::SharedPtr go_to_pose_srv_;
     rclcpp::Service<std_srvs::srv::Empty>::SharedPtr go_to_standoff_srv_;
 
-    // Initalize callback functions
+    // Initalize service callback functions
     void home_srv_callback(const std::shared_ptr<std_srvs::srv::Empty::Request>, std::shared_ptr<std_srvs::srv::Empty::Response>);
     void extend_srv_callback(const std::shared_ptr<std_srvs::srv::Empty::Request>, std::shared_ptr<std_srvs::srv::Empty::Response>);
     void go_to_pose_srv_callback(const std::shared_ptr<finger_rig_msgs::srv::GoToPose::Request>, std::shared_ptr<finger_rig_msgs::srv::GoToPose::Response>);
@@ -40,9 +37,7 @@ class MotionControl : public rclcpp::Node
 
 MotionControl::MotionControl() : Node("motion_control"), move_group_(std::shared_ptr<rclcpp::Node>(std::move(this)), MOVE_GROUP)
 {
-  // Create publisher
-  publisher_ = this->create_publisher<std_msgs::msg::String>("topic", 10);
-
+  //// CONSTRUCTOR
   // Create services
   home_srv_ = create_service<std_srvs::srv::Empty>("home", std::bind(&MotionControl::home_srv_callback, this, _1, _2));
   extend_srv_ = create_service<std_srvs::srv::Empty>("extend", std::bind(&MotionControl::extend_srv_callback, this, _1, _2));
@@ -85,26 +80,38 @@ void MotionControl::go_to_standoff_srv_callback(const std::shared_ptr<std_srvs::
 {
   RCLCPP_INFO(this->get_logger(), "Standoff service called.");
 
-  this->go_to_pose(0.3, 0.1, 0.35, 3.14, 0.0, 0.785);
+  this->go_to_pose(0.3, 0.1, 0.35, 3.14, 0.0, 0.0);
 }
 
 void MotionControl::go_to_pose(double x, double y, double z, double roll, double pitch, double yaw)
 {
+  // Create variables for waypoint
+  std::vector<geometry_msgs::msg::Pose> waypoints;
+  geometry_msgs::msg::Pose target_pose;
   tf2::Quaternion myQuaternion;
+
+  // Define waypoint
   myQuaternion.setRPY(roll, pitch, yaw);
   myQuaternion = myQuaternion.normalize();
+  target_pose.position.x = x;
+  target_pose.position.y = y;
+  target_pose.position.z = z;
+  target_pose.orientation.x = myQuaternion.x();
+  target_pose.orientation.y = myQuaternion.y();
+  target_pose.orientation.z = myQuaternion.z();
+  target_pose.orientation.w = myQuaternion.w();
+  waypoints.push_back(target_pose);
 
-  geometry_msgs::msg::PoseStamped *myPose;
-  myPose->pose.position.x = x;
-  myPose->pose.position.y = y;
-  myPose->pose.position.z = z;
-  myPose->pose.orientation.x = myQuaternion.x();
-  myPose->pose.orientation.y = myQuaternion.y();
-  myPose->pose.orientation.z = myQuaternion.z();
-  myPose->pose.orientation.w = myQuaternion.w();
+  // Compute Cartesian path
+  moveit_msgs::msg::RobotTrajectory trajectory;
+  const double jump_threshold = 0.0;
+  const double eef_step = 0.01;
+  double fraction = move_group_.computeCartesianPath(waypoints, eef_step, jump_threshold, trajectory);
+  RCLCPP_INFO(this->get_logger(), "Visualizing plan (Cartesian path) (%.2f%% achieved)", fraction * 100.0);
 
-  this->move_group_.setPoseTarget(myPose->pose);
-  this->move_group_.move();
+  // Execute Cartesian path
+  move_group_.execute(trajectory);
+  RCLCPP_INFO(this->get_logger(), "Cartesian path successfully executed");
 }
 
 int main(int argc, char * argv[])
