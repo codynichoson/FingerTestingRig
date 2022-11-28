@@ -1,10 +1,13 @@
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <cv_bridge/cv_bridge.h>
+
 #include <opencv2/opencv.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/objdetect/objdetect.hpp>
 #include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgcodecs/imgcodecs.hpp>
+
 #include <std_srvs/srv/empty.hpp>
 #include <std_msgs/msg/header.h>
 // #include <clock.hpp>
@@ -24,11 +27,11 @@ class Vision : public rclcpp::Node
       image_sub_ = this->create_subscription<sensor_msgs::msg::Image>("/camera/image", 10, std::bind(&Vision::image_sub_callback, this, _1));
 
       // Construct publishers
+      gray_pub_ = this->create_publisher<sensor_msgs::msg::Image>("/camera/image_gray", 10);
       norm_pub_ = this->create_publisher<sensor_msgs::msg::Image>("/camera/image_normalized", 10);
       mask_pub_ = this->create_publisher<sensor_msgs::msg::Image>("/camera/image_mask", 10);
-
-      // Create services
-      capture_img_srv_ = create_service<std_srvs::srv::Empty>("capture_image", std::bind(&Vision::capture_img_srv_callback, this, _1, _2));
+      blur_pub_ = this->create_publisher<sensor_msgs::msg::Image>("/camera/image_blur", 10);
+      contour_pub_ = this->create_publisher<sensor_msgs::msg::Image>("/camera/image_contours", 10);
 
       cv::namedWindow("Image Window");      
     }
@@ -44,17 +47,16 @@ class Vision : public rclcpp::Node
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_sub_;
 
     // Initialize publishers
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr gray_pub_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr norm_pub_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr mask_pub_;
-
-    // Initialize services
-    rclcpp::Service<std_srvs::srv::Empty>::SharedPtr capture_img_srv_;
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr blur_pub_;
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr contour_pub_;
 
     // Initialize variables
     cv_bridge::CvImagePtr cv_img_ptr;
     cv::Mat color_img;
     cv::Mat gray_img;
-    cv::Mat normalized_img;
     cv::Mat mask;
 
     void image_sub_callback(const sensor_msgs::msg::Image::SharedPtr msg)
@@ -70,58 +72,30 @@ class Vision : public rclcpp::Node
       }
 
       // Get CV image matrix by dereferencing image within cv_bridge pointer
-      // color_img = cv_img_ptr->image;
-      cv::cvtColor(cv_img_ptr->image, color_img, CV_BGR2RGB);
-
-      normalize_img();
-      threshold_img();
-    }
-
-    void capture_img_srv_callback(const std::shared_ptr<std_srvs::srv::Empty::Request>, std::shared_ptr<std_srvs::srv::Empty::Response>)
-    {
-      RCLCPP_INFO(this->get_logger(), "Capturing image.");
-
-      // Save image in /images directory in working directory
-      bool check = cv::imwrite("images/color.jpg", color_img);
-
-      // find_circles();
-        
-      // Check if image was successfully saved
-      if (check == false) {
-        RCLCPP_ERROR(this->get_logger(), "Image failed to save.");
-      }
-      else{
-        RCLCPP_ERROR(this->get_logger(), "Image successfully saved.");
-      }
-    }
-
-    void normalize_img()
-    {
+      color_img = cv_img_ptr->image;
       cv::cvtColor(color_img, gray_img, cv::COLOR_RGB2GRAY);
 
-      double min, max;
-      cv::minMaxLoc(gray_img,&min,&max);
-      float sub = min;
-      float mult = 255.0f/(float)(max-sub);
-      normalized_img = gray_img - sub;
-      normalized_img = mult * normalized_img;
+      std_msgs::msg::Header gray_header;
+      gray_header.stamp = this->get_clock()->now();
+      gray_header.frame_id = "camera";
 
-      std_msgs::msg::Header header;
-      header.stamp = this->get_clock()->now();
-      header.frame_id = "camera";
+      sensor_msgs::msg::Image gray_pub_msg;
+      cv_bridge::CvImage gray_cv_img;
+      gray_cv_img = cv_bridge::CvImage(gray_header, sensor_msgs::image_encodings::MONO8, gray_img);
+      gray_cv_img.toImageMsg(gray_pub_msg);
 
-      sensor_msgs::msg::Image norm_pub_msg;
-      cv_bridge::CvImage norm_cv_img;
-      norm_cv_img = cv_bridge::CvImage(header, sensor_msgs::image_encodings::MONO8, normalized_img);
-      norm_cv_img.toImageMsg(norm_pub_msg);
+      gray_pub_->publish(gray_pub_msg);
 
-      norm_pub_->publish(norm_pub_msg);
+      threshold_img();
+      find_contours();
     }
 
     void threshold_img()
     {
-      cv::Mat mask;
-      cv::threshold(normalized_img, mask, 110, 255, CV_THRESH_BINARY);
+      cv::threshold(gray_img, mask, 160, 255, CV_THRESH_BINARY);
+
+      // Invert threshold mask
+      cv::bitwise_not(mask, mask);
 
       std_msgs::msg::Header header;
       header.stamp = this->get_clock()->now();
@@ -135,46 +109,85 @@ class Vision : public rclcpp::Node
       mask_pub_->publish(mask_pub_msg);
     }
 
-    void find_circles()
+    void find_contours()
     {
-      // normalize_img();
+      // Find contours in mask
+      std::vector<std::vector<cv::Point>> contours;
+      std::vector<cv::Vec4i> hierarchy;
+      cv::Mat contour_output = mask.clone();
+      cv::findContours(contour_output, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE);
 
-      // threshold_img();
-
-
-      // cv::medianBlur(gray_img, gray_img, 5);
-
-      // std::vector<cv::Vec3f> circles;
-
-      // cv::HoughCircles(gray_img, circles, cv::HOUGH_GRADIENT, 2, 5, 100, 100, 0, 1000);
-
-      // RCLCPP_INFO(this->get_logger(), "Circles detected: %d", circles.size());
-
-      // for(std::size_t i = 0; i < circles.size(); i++)
+      // Draw contours on color image
+      cv::Mat drawing = color_img.clone();
+      // for(int idx = 0; idx >= 0; idx = hierarchy[idx][0] )
       // {
-      //   cv::Vec3i c = circles[i];
-      //   cv::Point center = cv::Point(c[0], c[1]);
-      //   // circle center
-      //   circle(color_img, center, 1, cv::Scalar(0,100,100), 3, cv::LINE_AA);
-      //   // circle outline
-      //   int radius = c[2];
-      //   circle(color_img, center, radius, cv::Scalar(255,0,255), 3, cv::LINE_AA);
+      //   cv::Scalar color( rand()&255, rand()&255, rand()&255);
+      //   cv::drawContours(drawing, contours, -1, color, cv::LINE_AA, 8, hierarchy);
       // }
+      // cv::Scalar color(rand()&255, rand()&255, rand()&255);
 
-      // Save image in /images directory in working directory
-      // bool check = cv::imwrite("images/normalized_img.jpg", normalized_img);
-      // cv::imwrite("images/mask.jpg", mask);
+      cv::Scalar red(255, 0, 0);
+      cv::Scalar orange(255, 128, 0);
+      cv::Scalar yellow(255, 255, 0);
+      cv::Scalar green(0, 255, 0);
+      cv::Scalar dark_green(0, 128, 0);
+      cv::Scalar blue(0, 0, 255);
+      cv::Scalar dark_blue(0, 0, 128);
+      cv::Scalar indigo(128, 0, 255);
+      cv::Scalar violet(255, 0, 255);
+      cv::Scalar white(255, 255, 255);
 
-      // cv::imshow(OPENCV_WINDOW, cv_img_ptr->image);
-      // cv::waitKey(3);
-        
-      // // Check if image was successfully saved
-      // if (check == false) {
-      //   RCLCPP_ERROR(this->get_logger(), "Image failed to save.");
-      // }
-      // else{
-      //   RCLCPP_ERROR(this->get_logger(), "Image successfully saved.");
-      // }
+      for (long unsigned int i = 0; i < contours.size(); i++)
+      {
+        if (i == 0)
+        {
+          cv::drawContours(drawing, contours, i, red, cv::LINE_AA, 8, hierarchy);
+        }
+        else if (i == 1)
+        {
+          cv::drawContours(drawing, contours, i, orange, cv::LINE_AA, 8, hierarchy);
+        }
+        else if (i == 2)
+        {
+          cv::drawContours(drawing, contours, i, green, cv::LINE_AA, 8, hierarchy);
+        }
+        else if (i == 3)
+        {
+          cv::drawContours(drawing, contours, i, dark_green, cv::LINE_AA, 8, hierarchy);
+        }
+        else if (i == 4)
+        {
+          cv::drawContours(drawing, contours, i, blue, cv::LINE_AA, 8, hierarchy);
+        }
+        else if (i == 5)
+        {
+          cv::drawContours(drawing, contours, i, dark_blue, cv::LINE_AA, 8, hierarchy);
+        }
+        else if (i == 6)
+        {
+          cv::drawContours(drawing, contours, i, indigo, cv::LINE_AA, 8, hierarchy);
+        }
+        else if (i == 7)
+        {
+          cv::drawContours(drawing, contours, i, violet, cv::LINE_AA, 8, hierarchy);
+        }
+        else
+        {
+          cv::drawContours(drawing, contours, i, white, cv::LINE_AA, 8, hierarchy);
+        }
+      }
+
+      RCLCPP_INFO(this->get_logger(), "Number of contours: %ld", contours.size());
+
+      // Publish image with contours drawn
+      std_msgs::msg::Header contour_header;
+      contour_header.stamp = this->get_clock()->now();
+      contour_header.frame_id = "camera";
+      sensor_msgs::msg::Image contour_pub_msg;
+      cv_bridge::CvImage contour_cv_img;
+      contour_cv_img = cv_bridge::CvImage(contour_header, sensor_msgs::image_encodings::RGB8, drawing);
+      contour_cv_img.toImageMsg(contour_pub_msg);
+      contour_pub_->publish(contour_pub_msg);
     }
 };
 
