@@ -244,6 +244,8 @@ def generate_launch_description():
             [FindPackageShare('franka_gripper'), 'launch', 'gripper.launch.py'])]),
         launch_arguments={'robot_ip': robot_ip,
                           use_fake_hardware_parameter_name: use_fake_hardware}.items(),
+        # launch_arguments={'robot_ip': "dont-care",
+        #                   use_fake_hardware_parameter_name: use_fake_hardware}.items(),
     )
 
     camera_launch_file = IncludeLaunchDescription(
