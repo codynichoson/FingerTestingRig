@@ -7,10 +7,13 @@
 #include <opencv2/objdetect/objdetect.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgcodecs/imgcodecs.hpp>
+#include <opencv2/tracking.hpp>
+#include <opencv2/tracking/tracking_legacy.hpp>
+#include <opencv2/videoio/videoio.hpp>
+#include <opencv2/core/utility.hpp>
 
 #include <std_srvs/srv/empty.hpp>
 #include <std_msgs/msg/header.h>
-// #include <clock.hpp>
 
 using std::placeholders::_1, std::placeholders::_2;
 
@@ -32,6 +35,7 @@ class Vision : public rclcpp::Node
       mask_pub_ = this->create_publisher<sensor_msgs::msg::Image>("/camera/image_mask", 10);
       blur_pub_ = this->create_publisher<sensor_msgs::msg::Image>("/camera/image_blur", 10);
       contour_pub_ = this->create_publisher<sensor_msgs::msg::Image>("/camera/image_contours", 10);
+      tracking_pub_ = this->create_publisher<sensor_msgs::msg::Image>("/camera/image_tracking", 10);
 
       cv::namedWindow("Image Window");      
     }
@@ -52,12 +56,15 @@ class Vision : public rclcpp::Node
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr mask_pub_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr blur_pub_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr contour_pub_;
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr tracking_pub_;
 
     // Initialize variables
     cv_bridge::CvImagePtr cv_img_ptr;
     cv::Mat color_img;
     cv::Mat gray_img;
     cv::Mat mask;
+
+    bool initialize = true;
 
     void image_sub_callback(const sensor_msgs::msg::Image::SharedPtr msg)
     {
@@ -88,6 +95,7 @@ class Vision : public rclcpp::Node
 
       threshold_img();
       find_contours();
+      track_contours();
     }
 
     void threshold_img()
@@ -97,15 +105,14 @@ class Vision : public rclcpp::Node
       // Invert threshold mask
       cv::bitwise_not(mask, mask);
 
+      // Publish mask image
       std_msgs::msg::Header header;
       header.stamp = this->get_clock()->now();
       header.frame_id = "camera";
-
       sensor_msgs::msg::Image mask_pub_msg;
       cv_bridge::CvImage mask_cv_img;
       mask_cv_img = cv_bridge::CvImage(header, sensor_msgs::image_encodings::MONO8, mask);
       mask_cv_img.toImageMsg(mask_pub_msg);
-
       mask_pub_->publish(mask_pub_msg);
     }
 
@@ -127,6 +134,19 @@ class Vision : public rclcpp::Node
         }
       }
 
+      // Find centroids
+      std::vector<cv::Moments> mu(big_contours.size());
+      for (int i = 0; i < big_contours.size(); i++)
+      {
+        mu[i] = cv::moments(big_contours[i], false);
+      }
+
+      std::vector<cv::Point2f> mc(big_contours.size());
+      for(int i = 0; i < big_contours.size(); i++)
+      {
+        mc[i] = cv::Point2f(mu[i].m10/mu[i].m00 , mu[i].m01/mu[i].m00); 
+      }
+
       // Draw contours on color image
       cv::Mat drawing = color_img.clone();
 
@@ -140,48 +160,58 @@ class Vision : public rclcpp::Node
       cv::Scalar indigo(128, 0, 255);
       cv::Scalar violet(255, 0, 255);
       cv::Scalar white(255, 255, 255);
+      cv::Scalar black(0, 0, 0);
 
       for (long unsigned int i = 0; i < big_contours.size(); i++)
       {
         if (i == 0 || i == 9 || i == 18)
         {
           cv::drawContours(drawing, big_contours, i, red, cv::LINE_AA, 8);
+          cv::circle(drawing, mc[i], 20, black, -1, 8, 0);
         }
         else if (i == 1 || i == 10)
         {
           cv::drawContours(drawing, big_contours, i, orange, cv::LINE_AA, 8);
+          cv::circle(drawing, mc[i], 20, black, -1, 8, 0);
         }
         else if (i == 2 || i == 11)
         {
           cv::drawContours(drawing, big_contours, i, yellow, cv::LINE_AA, 8);
+          cv::circle(drawing, mc[i], 20, black, -1, 8, 0);
         }
         else if (i == 3 || i == 12)
         {
           cv::drawContours(drawing, big_contours, i, green, cv::LINE_AA, 8);
+          cv::circle(drawing, mc[i], 20, black, -1, 8, 0);
         }
         else if (i == 4 || i == 13)
         {
           cv::drawContours(drawing, big_contours, i, dark_green, cv::LINE_AA, 8);
+          cv::circle(drawing, mc[i], 20, black, -1, 8, 0);
         }
         else if (i == 5 || i == 14)
         {
           cv::drawContours(drawing, big_contours, i, blue, cv::LINE_AA, 8);
+          cv::circle(drawing, mc[i], 20, black, -1, 8, 0);
         }
         else if (i == 6 || i == 15)
         {
           cv::drawContours(drawing, big_contours, i, dark_blue, cv::LINE_AA, 8);
+          cv::circle(drawing, mc[i], 20, black, -1, 8, 0);
         }
         else if (i == 7 || i == 16)
         {
           cv::drawContours(drawing, big_contours, i, indigo, cv::LINE_AA, 8);
+          cv::circle(drawing, mc[i], 20, black, -1, 8, 0);
         }
         else if (i == 8 || i == 17)
         {
           cv::drawContours(drawing, big_contours, i, violet, cv::LINE_AA, 8);
+          cv::circle(drawing, mc[i], 20, black, -1, 8, 0);
         }
       }
 
-      RCLCPP_INFO(this->get_logger(), "Number of contours: %ld", big_contours.size());
+      // RCLCPP_INFO(this->get_logger(), "Number of contours: %ld", big_contours.size());
 
       // Publish image with contours drawn
       std_msgs::msg::Header contour_header;
@@ -192,6 +222,64 @@ class Vision : public rclcpp::Node
       contour_cv_img = cv_bridge::CvImage(contour_header, sensor_msgs::image_encodings::RGB8, drawing);
       contour_cv_img.toImageMsg(contour_pub_msg);
       contour_pub_->publish(contour_pub_msg);
+    }
+
+    void track_contours()
+    {
+      // std::string trackingAlg = "KCF";
+
+      // // cv::MultiTracker tracker = new cv::MultiTracker();
+      // cv::legacy::MultiTracker tracker;
+      // *tracker = cv::legacy::TrackerKCF::create();
+
+      // // Container of tracked objects
+      // std::vector<cv::Rect2d> objects;
+
+      // std::vector<cv::Rect> ROIs;
+      // cv::Rect rect1;
+      // rect1.x = 1000;
+      // rect1.y = 1000;
+      // rect1.width = 200;
+      // rect1.height = 200;
+      // ROIs.push_back(rect1);
+
+      // // Define regions of interest/bounding boxes (ROIs)
+
+      // // Initialize the tracker
+      // if (initialize == true)
+      // {
+      //   std::vector<cv::legacy::Tracker> algorithms;
+
+      //   for (long unsigned int i = 0; i < ROIs.size(); i++)
+      //   {
+      //     // algorithms.push_back(cv::createTrackerByName(trackingAlg));
+      //     // algorithms.push_back(cv::TrackerKCF::create());
+      //     algorithms.push_back(tracker);
+      //     objects.push_back(ROIs[i]);
+      //   }
+
+      //   tracker.add(*algorithms, mask, objects);
+      // }
+      // else
+      // {
+      //   //update the tracking result
+      //   tracker.update(mask);
+
+      //   cv::Mat tracking_img = color_img.clone();
+    
+      //   // draw the tracked object
+      //   for(unsigned i = 0; i < tracker.getObjects().size(); i++)
+      //     cv::rectangle(tracking_img, tracker.getObjects()[i], cv::Scalar(0, 255, 0 ), 2, 1);
+
+      //   // Publish tracking image
+      //   std_msgs::msg::Header tracking_header;
+      //   tracking_header.stamp = this->get_clock()->now();
+      //   tracking_header.frame_id = "camera";
+      //   sensor_msgs::msg::Image tracking_pub_msg;
+      //   cv_bridge::CvImage tracking_cv_img;
+      //   tracking_cv_img = cv_bridge::CvImage(tracking_header, sensor_msgs::image_encodings::RGB8, tracking_img);
+      //   tracking_cv_img.toImageMsg(tracking_pub_msg);
+      //   tracking_pub_->publish(tracking_pub_msg);
     }
 };
 
