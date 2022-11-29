@@ -117,14 +117,18 @@ class Vision : public rclcpp::Node
       cv::Mat contour_output = mask.clone();
       cv::findContours(contour_output, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE);
 
+      // Filter out any small contours
+      std::vector<std::vector<cv::Point>> big_contours;
+      for (long unsigned int i = 0; i < contours.size(); i++)
+      {
+        if (cv::contourArea(contours[i]) > 5)
+        {
+          big_contours.push_back(contours[i]);
+        }
+      }
+
       // Draw contours on color image
       cv::Mat drawing = color_img.clone();
-      // for(int idx = 0; idx >= 0; idx = hierarchy[idx][0] )
-      // {
-      //   cv::Scalar color( rand()&255, rand()&255, rand()&255);
-      //   cv::drawContours(drawing, contours, -1, color, cv::LINE_AA, 8, hierarchy);
-      // }
-      // cv::Scalar color(rand()&255, rand()&255, rand()&255);
 
       cv::Scalar red(255, 0, 0);
       cv::Scalar orange(255, 128, 0);
@@ -137,47 +141,47 @@ class Vision : public rclcpp::Node
       cv::Scalar violet(255, 0, 255);
       cv::Scalar white(255, 255, 255);
 
-      for (long unsigned int i = 0; i < contours.size(); i++)
+      for (long unsigned int i = 0; i < big_contours.size(); i++)
       {
-        if (i == 0)
+        if (i == 0 || i == 9 || i == 18)
         {
-          cv::drawContours(drawing, contours, i, red, cv::LINE_AA, 8, hierarchy);
+          cv::drawContours(drawing, big_contours, i, red, cv::LINE_AA, 8);
         }
-        else if (i == 1)
+        else if (i == 1 || i == 10)
         {
-          cv::drawContours(drawing, contours, i, orange, cv::LINE_AA, 8, hierarchy);
+          cv::drawContours(drawing, big_contours, i, orange, cv::LINE_AA, 8);
         }
-        else if (i == 2)
+        else if (i == 2 || i == 11)
         {
-          cv::drawContours(drawing, contours, i, green, cv::LINE_AA, 8, hierarchy);
+          cv::drawContours(drawing, big_contours, i, yellow, cv::LINE_AA, 8);
         }
-        else if (i == 3)
+        else if (i == 3 || i == 12)
         {
-          cv::drawContours(drawing, contours, i, dark_green, cv::LINE_AA, 8, hierarchy);
+          cv::drawContours(drawing, big_contours, i, green, cv::LINE_AA, 8);
         }
-        else if (i == 4)
+        else if (i == 4 || i == 13)
         {
-          cv::drawContours(drawing, contours, i, blue, cv::LINE_AA, 8, hierarchy);
+          cv::drawContours(drawing, big_contours, i, dark_green, cv::LINE_AA, 8);
         }
-        else if (i == 5)
+        else if (i == 5 || i == 14)
         {
-          cv::drawContours(drawing, contours, i, dark_blue, cv::LINE_AA, 8, hierarchy);
+          cv::drawContours(drawing, big_contours, i, blue, cv::LINE_AA, 8);
         }
-        else if (i == 6)
+        else if (i == 6 || i == 15)
         {
-          cv::drawContours(drawing, contours, i, indigo, cv::LINE_AA, 8, hierarchy);
+          cv::drawContours(drawing, big_contours, i, dark_blue, cv::LINE_AA, 8);
         }
-        else if (i == 7)
+        else if (i == 7 || i == 16)
         {
-          cv::drawContours(drawing, contours, i, violet, cv::LINE_AA, 8, hierarchy);
+          cv::drawContours(drawing, big_contours, i, indigo, cv::LINE_AA, 8);
         }
-        else
+        else if (i == 8 || i == 17)
         {
-          cv::drawContours(drawing, contours, i, white, cv::LINE_AA, 8, hierarchy);
+          cv::drawContours(drawing, big_contours, i, violet, cv::LINE_AA, 8);
         }
       }
 
-      RCLCPP_INFO(this->get_logger(), "Number of contours: %ld", contours.size());
+      RCLCPP_INFO(this->get_logger(), "Number of contours: %ld", big_contours.size());
 
       // Publish image with contours drawn
       std_msgs::msg::Header contour_header;
