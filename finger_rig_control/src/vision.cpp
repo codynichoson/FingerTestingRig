@@ -35,7 +35,7 @@ class Vision : public rclcpp::Node
       mask_pub_ = this->create_publisher<sensor_msgs::msg::Image>("/camera/image_mask", 10);
       blur_pub_ = this->create_publisher<sensor_msgs::msg::Image>("/camera/image_blur", 10);
       contour_pub_ = this->create_publisher<sensor_msgs::msg::Image>("/camera/image_contours", 10);
-      tracking_pub_ = this->create_publisher<sensor_msgs::msg::Image>("/camera/image_tracking", 10);
+      // tracking_pub_ = this->create_publisher<sensor_msgs::msg::Image>("/camera/image_tracking", 10);
 
       cv::namedWindow("Image Window");      
     }
@@ -56,7 +56,7 @@ class Vision : public rclcpp::Node
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr mask_pub_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr blur_pub_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr contour_pub_;
-    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr tracking_pub_;
+    // rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr tracking_pub_;
 
     // Initialize variables
     cv_bridge::CvImagePtr cv_img_ptr;
@@ -85,25 +85,35 @@ class Vision : public rclcpp::Node
       std_msgs::msg::Header gray_header;
       gray_header.stamp = this->get_clock()->now();
       gray_header.frame_id = "camera";
-
       sensor_msgs::msg::Image gray_pub_msg;
       cv_bridge::CvImage gray_cv_img;
       gray_cv_img = cv_bridge::CvImage(gray_header, sensor_msgs::image_encodings::MONO8, gray_img);
       gray_cv_img.toImageMsg(gray_pub_msg);
-
       gray_pub_->publish(gray_pub_msg);
 
       threshold_img();
       find_contours();
-      track_contours();
+      // track_contours();
     }
 
     void threshold_img()
     {
-      cv::threshold(gray_img, mask, 160, 255, CV_THRESH_BINARY);
+      cv::threshold(gray_img, mask, 170, 255, CV_THRESH_BINARY);
 
       // Invert threshold mask
       cv::bitwise_not(mask, mask);
+
+      // cv::Mat circle_mask = cv::Mat::zeros(mask.rows, mask.cols, CV_32F);
+      cv::Mat circle_mask = cv::Mat::zeros(30, 30, CV_32F);
+      // cv::Point center;
+      // center.x = mask.rows/2.0;
+      // center.y = mask.cols/2.0;
+      // center.x = 1000;
+      // center.y = 1000;
+      // cv::circle(circle_mask, center, 500, (255, 255, 255), -1);
+
+      // Combine mask and circle_mask and save to mask
+      // cv::bitwise_and(mask, circle_mask, mask);
 
       // Publish mask image
       std_msgs::msg::Header header;
@@ -128,7 +138,7 @@ class Vision : public rclcpp::Node
       std::vector<std::vector<cv::Point>> big_contours;
       for (long unsigned int i = 0; i < contours.size(); i++)
       {
-        if (cv::contourArea(contours[i]) > 5)
+        if (cv::contourArea(contours[i]) > 8)
         {
           big_contours.push_back(contours[i]);
         }
@@ -136,13 +146,13 @@ class Vision : public rclcpp::Node
 
       // Find centroids
       std::vector<cv::Moments> mu(big_contours.size());
-      for (int i = 0; i < big_contours.size(); i++)
+      for (long unsigned int i = 0; i < big_contours.size(); i++)
       {
         mu[i] = cv::moments(big_contours[i], false);
       }
 
       std::vector<cv::Point2f> mc(big_contours.size());
-      for(int i = 0; i < big_contours.size(); i++)
+      for(long unsigned int i = 0; i < big_contours.size(); i++)
       {
         mc[i] = cv::Point2f(mu[i].m10/mu[i].m00 , mu[i].m01/mu[i].m00); 
       }
@@ -154,64 +164,24 @@ class Vision : public rclcpp::Node
       cv::Scalar orange(255, 128, 0);
       cv::Scalar yellow(255, 255, 0);
       cv::Scalar green(0, 255, 0);
-      cv::Scalar dark_green(0, 128, 0);
       cv::Scalar blue(0, 0, 255);
-      cv::Scalar dark_blue(0, 0, 128);
       cv::Scalar indigo(128, 0, 255);
       cv::Scalar violet(255, 0, 255);
-      cv::Scalar white(255, 255, 255);
-      cv::Scalar black(0, 0, 0);
+
+      std::vector<cv::Scalar> colors;
+      colors.push_back(red);
+      colors.push_back(orange);
+      colors.push_back(yellow);
+      colors.push_back(green);
+      colors.push_back(blue);
+      colors.push_back(indigo);
+      colors.push_back(violet);
 
       for (long unsigned int i = 0; i < big_contours.size(); i++)
       {
-        if (i == 0 || i == 9 || i == 18)
-        {
-          cv::drawContours(drawing, big_contours, i, red, cv::LINE_AA, 8);
-          cv::circle(drawing, mc[i], 20, black, -1, 8, 0);
-        }
-        else if (i == 1 || i == 10)
-        {
-          cv::drawContours(drawing, big_contours, i, orange, cv::LINE_AA, 8);
-          cv::circle(drawing, mc[i], 20, black, -1, 8, 0);
-        }
-        else if (i == 2 || i == 11)
-        {
-          cv::drawContours(drawing, big_contours, i, yellow, cv::LINE_AA, 8);
-          cv::circle(drawing, mc[i], 20, black, -1, 8, 0);
-        }
-        else if (i == 3 || i == 12)
-        {
-          cv::drawContours(drawing, big_contours, i, green, cv::LINE_AA, 8);
-          cv::circle(drawing, mc[i], 20, black, -1, 8, 0);
-        }
-        else if (i == 4 || i == 13)
-        {
-          cv::drawContours(drawing, big_contours, i, dark_green, cv::LINE_AA, 8);
-          cv::circle(drawing, mc[i], 20, black, -1, 8, 0);
-        }
-        else if (i == 5 || i == 14)
-        {
-          cv::drawContours(drawing, big_contours, i, blue, cv::LINE_AA, 8);
-          cv::circle(drawing, mc[i], 20, black, -1, 8, 0);
-        }
-        else if (i == 6 || i == 15)
-        {
-          cv::drawContours(drawing, big_contours, i, dark_blue, cv::LINE_AA, 8);
-          cv::circle(drawing, mc[i], 20, black, -1, 8, 0);
-        }
-        else if (i == 7 || i == 16)
-        {
-          cv::drawContours(drawing, big_contours, i, indigo, cv::LINE_AA, 8);
-          cv::circle(drawing, mc[i], 20, black, -1, 8, 0);
-        }
-        else if (i == 8 || i == 17)
-        {
-          cv::drawContours(drawing, big_contours, i, violet, cv::LINE_AA, 8);
-          cv::circle(drawing, mc[i], 20, black, -1, 8, 0);
-        }
+        cv::drawContours(drawing, big_contours, i, colors[i % 6], cv::LINE_AA, 8);
+        cv::circle(drawing, mc[i], 20, black, -1, 8, 0);
       }
-
-      // RCLCPP_INFO(this->get_logger(), "Number of contours: %ld", big_contours.size());
 
       // Publish image with contours drawn
       std_msgs::msg::Header contour_header;
