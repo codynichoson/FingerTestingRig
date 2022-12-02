@@ -9,6 +9,7 @@
 #include <opencv2/imgcodecs/imgcodecs.hpp>
 #include <opencv2/tracking.hpp>
 #include <opencv2/tracking/tracking_legacy.hpp>
+#include <opencv2/tracking/tracking.hpp>
 #include <opencv2/videoio/videoio.hpp>
 #include <opencv2/core/utility.hpp>
 
@@ -32,10 +33,11 @@ class Vision : public rclcpp::Node
       // Construct publishers
       gray_pub_ = this->create_publisher<sensor_msgs::msg::Image>("/camera/image_gray", 10);
       norm_pub_ = this->create_publisher<sensor_msgs::msg::Image>("/camera/image_normalized", 10);
+      finger_pub_ = this->create_publisher<sensor_msgs::msg::Image>("/camera/image_finger", 10);
       mask_pub_ = this->create_publisher<sensor_msgs::msg::Image>("/camera/image_mask", 10);
       blur_pub_ = this->create_publisher<sensor_msgs::msg::Image>("/camera/image_blur", 10);
       contour_pub_ = this->create_publisher<sensor_msgs::msg::Image>("/camera/image_contours", 10);
-      // tracking_pub_ = this->create_publisher<sensor_msgs::msg::Image>("/camera/image_tracking", 10);
+      tracking_pub_ = this->create_publisher<sensor_msgs::msg::Image>("/camera/image_tracking", 10);
 
       cv::namedWindow("Image Window");      
     }
@@ -53,15 +55,18 @@ class Vision : public rclcpp::Node
     // Initialize publishers
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr gray_pub_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr norm_pub_;
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr finger_pub_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr mask_pub_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr blur_pub_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr contour_pub_;
-    // rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr tracking_pub_;
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr tracking_pub_;
 
     // Initialize variables
     cv_bridge::CvImagePtr cv_img_ptr;
     cv::Mat color_img;
     cv::Mat gray_img;
+    cv::Mat cropped_gray_img;
+    cv::Mat finger_mask;
     cv::Mat mask;
 
     bool initialize = true;
@@ -91,29 +96,105 @@ class Vision : public rclcpp::Node
       gray_cv_img.toImageMsg(gray_pub_msg);
       gray_pub_->publish(gray_pub_msg);
 
+      find_finger();
       threshold_img();
       find_contours();
       // track_contours();
     }
 
+    void find_finger()
+    {
+      // Threshold gray image
+      cv::threshold(gray_img, finger_mask, 210, 255, CV_THRESH_BINARY);
+
+      // Dilate and erode to make lines around finger stronger 
+      int morph_size = 8;
+      cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(2 * morph_size + 1, 2 * morph_size + 1), cv::Point(morph_size, morph_size));
+      cv::dilate(finger_mask, finger_mask, element, cv::Point(-1, -1), 5, 1, 1);
+      cv::erode(finger_mask, finger_mask, element, cv::Point(-1, -1), 5, 1, 1);
+
+      // Find contours in finger_mask
+      cv::Mat contour_output = finger_mask.clone();
+      std::vector<std::vector<cv::Point>> finger_contours;
+      std::vector<cv::Vec4i> finger_hierarchy;
+      cv::findContours(contour_output, finger_contours, finger_hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE);
+
+      // Filter out any small contours (finger contour should be large)
+      std::vector<std::vector<cv::Point>> final_contour;
+      for (long unsigned int i = 0; i < finger_contours.size(); i++)
+      {
+        if (cv::contourArea(finger_contours[i]) > 15000)
+        {
+          final_contour.push_back(finger_contours[i]);
+        }
+      }
+
+      // Find centroid of finger
+      std::vector<cv::Moments> mu(final_contour.size());
+      for (long unsigned int i = 0; i < final_contour.size(); i++)
+      {
+        mu[i] = cv::moments(final_contour[i], false);
+      }
+
+      std::vector<cv::Point2f> mc(final_contour.size());
+      for(long unsigned int i = 0; i < final_contour.size(); i++)
+      {
+        mc[i] = cv::Point2f(mu[i].m10/mu[i].m00 , mu[i].m01/mu[i].m00); 
+      }
+
+      // Draw contour
+      // cv::Scalar color(0, 0, 255);
+      cv::Mat finger_show = color_img.clone();
+      // for (long unsigned int i = 0; i < final_contour.size(); i++)
+      // {
+      //   // cv::drawContours(finger_show, final_contour, i, color, cv::LINE_AA, 10);
+      //   cv::circle(finger_show, mc[i], 930, color, 30, 30, 0);
+      // }
+
+      // Create black image with white circle to use for cropping finger circle out of color image
+      // Type is CV_8UC3, 8 = bits per pixel, U = unsigned int (0-255), C3 = 3 channels per pixel
+      cv::Mat circle_mask = cv::Mat::zeros(cv::Size(finger_show.cols, finger_show.rows), CV_8UC3);
+      cv::Point center;
+      center.x = mc[0].x;
+      center.y = mc[0].y;
+      cv::Scalar white(255, 255, 255);
+      cv::circle(circle_mask, mc[0], 920, white, -1);
+
+      // Crop color image (finger_show) to only include area where fingertip is
+      cv::bitwise_and(circle_mask, finger_show, finger_show);
+
+      // Convert cropped image of finger to grayscale
+      cv::cvtColor(finger_show, cropped_gray_img, cv::COLOR_RGB2GRAY);
+
+      // Publish finger image
+      std_msgs::msg::Header finger_header;
+      finger_header.stamp = this->get_clock()->now();
+      finger_header.frame_id = "camera";
+      sensor_msgs::msg::Image finger_pub_msg;
+      cv_bridge::CvImage finger_cv_img;
+      finger_cv_img = cv_bridge::CvImage(finger_header, sensor_msgs::image_encodings::MONO8, cropped_gray_img);
+      finger_cv_img.toImageMsg(finger_pub_msg);
+      finger_pub_->publish(finger_pub_msg);
+    }
+
     void threshold_img()
     {
-      cv::threshold(gray_img, mask, 170, 255, CV_THRESH_BINARY);
+      // For paper test
+      // cv::threshold(gray_img, mask, 170, 255, CV_THRESH_BINARY);
+
+      cv::threshold(cropped_gray_img, mask, 165, 255, CV_THRESH_BINARY);
 
       // Invert threshold mask
       cv::bitwise_not(mask, mask);
 
-      // cv::Mat circle_mask = cv::Mat::zeros(mask.rows, mask.cols, CV_32F);
-      cv::Mat circle_mask = cv::Mat::zeros(30, 30, CV_32F);
-      // cv::Point center;
-      // center.x = mask.rows/2.0;
-      // center.y = mask.cols/2.0;
-      // center.x = 1000;
-      // center.y = 1000;
-      // cv::circle(circle_mask, center, 500, (255, 255, 255), -1);
+      int morph_size = 3;
+      cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(2 * morph_size + 1, 2 * morph_size + 1), cv::Point(morph_size, morph_size));
+      cv::erode(mask, mask, element, cv::Point(-1, -1), 2, 1, 1);
 
-      // Combine mask and circle_mask and save to mask
-      // cv::bitwise_and(mask, circle_mask, mask);
+      morph_size = 7;
+      element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(2 * morph_size + 1, 2 * morph_size + 1), cv::Point(morph_size, morph_size));
+      cv::dilate(mask, mask, element, cv::Point(-1, -1), 4, 1, 1);
+      cv::erode(mask, mask, cv::Mat(), cv::Point(-1, -1), 1, 1, 1);
 
       // Publish mask image
       std_msgs::msg::Header header;
@@ -134,11 +215,11 @@ class Vision : public rclcpp::Node
       cv::Mat contour_output = mask.clone();
       cv::findContours(contour_output, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE);
 
-      // Filter out any small contours
+      // Filter out any small or large contours
       std::vector<std::vector<cv::Point>> big_contours;
       for (long unsigned int i = 0; i < contours.size(); i++)
       {
-        if (cv::contourArea(contours[i]) > 8)
+        if (cv::contourArea(contours[i]) > 5000 && cv::contourArea(contours[i]) < 25000)
         {
           big_contours.push_back(contours[i]);
         }
@@ -167,6 +248,7 @@ class Vision : public rclcpp::Node
       cv::Scalar blue(0, 0, 255);
       cv::Scalar indigo(128, 0, 255);
       cv::Scalar violet(255, 0, 255);
+      cv::Scalar black (0, 0, 0);
 
       std::vector<cv::Scalar> colors;
       colors.push_back(red);
@@ -196,60 +278,55 @@ class Vision : public rclcpp::Node
 
     void track_contours()
     {
-      // std::string trackingAlg = "KCF";
+      // Specify the tracker type
+      // std::string trackingType = "KCF";
+      // std::string trackerType = "SSSCSRT";
 
-      // // cv::MultiTracker tracker = new cv::MultiTracker();
-      // cv::legacy::MultiTracker tracker;
-      // *tracker = cv::legacy::TrackerKCF::create();
+      // Create multitracker
+      cv::Ptr<cv::legacy::tracking::MultiTracker> multiTracker = cv::legacy::tracking::MultiTracker::create();
 
-      // // Container of tracked objects
-      // std::vector<cv::Rect2d> objects;
+      // Create bounding boxes
+      std::vector<cv::Rect> bboxes;
+      cv::Rect rect1;
+      rect1.x = 1000;
+      rect1.y = 1000;
+      rect1.width = 200;
+      rect1.height = 200;
+      bboxes.push_back(rect1);
 
-      // std::vector<cv::Rect> ROIs;
-      // cv::Rect rect1;
-      // rect1.x = 1000;
-      // rect1.y = 1000;
-      // rect1.width = 200;
-      // rect1.height = 200;
-      // ROIs.push_back(rect1);
+      // Initialize the tracker
+      if (initialize == true)
+      {
+        // Initialize multitracker
+        cv::Ptr<cv::legacy::tracking::Tracker> tracker = cv::legacy::tracking::TrackerCSRT::create();
+        for(long unsigned int i=0; i < bboxes.size(); i++)
+          multiTracker->add(tracker, mask, cv::Rect2d(bboxes[i]));
+      }
+      else
+      {
+        // Update the tracking result
+        multiTracker->update(mask);
 
-      // // Define regions of interest/bounding boxes (ROIs)
+        cv::Mat tracking_img = color_img.clone();
 
-      // // Initialize the tracker
-      // if (initialize == true)
-      // {
-      //   std::vector<cv::legacy::Tracker> algorithms;
-
-      //   for (long unsigned int i = 0; i < ROIs.size(); i++)
-      //   {
-      //     // algorithms.push_back(cv::createTrackerByName(trackingAlg));
-      //     // algorithms.push_back(cv::TrackerKCF::create());
-      //     algorithms.push_back(tracker);
-      //     objects.push_back(ROIs[i]);
-      //   }
-
-      //   tracker.add(*algorithms, mask, objects);
-      // }
-      // else
-      // {
-      //   //update the tracking result
-      //   tracker.update(mask);
-
-      //   cv::Mat tracking_img = color_img.clone();
+        cv::Scalar green(0, 255, 0);
     
-      //   // draw the tracked object
-      //   for(unsigned i = 0; i < tracker.getObjects().size(); i++)
-      //     cv::rectangle(tracking_img, tracker.getObjects()[i], cv::Scalar(0, 255, 0 ), 2, 1);
+        // Draw the tracked objects
+        for(unsigned i=0; i<multiTracker->getObjects().size(); i++)
+        {
+          cv::rectangle(tracking_img, multiTracker->getObjects()[i], green, 2, 1);
+        }
 
-      //   // Publish tracking image
-      //   std_msgs::msg::Header tracking_header;
-      //   tracking_header.stamp = this->get_clock()->now();
-      //   tracking_header.frame_id = "camera";
-      //   sensor_msgs::msg::Image tracking_pub_msg;
-      //   cv_bridge::CvImage tracking_cv_img;
-      //   tracking_cv_img = cv_bridge::CvImage(tracking_header, sensor_msgs::image_encodings::RGB8, tracking_img);
-      //   tracking_cv_img.toImageMsg(tracking_pub_msg);
-      //   tracking_pub_->publish(tracking_pub_msg);
+        // Publish tracking image
+        std_msgs::msg::Header tracking_header;
+        tracking_header.stamp = this->get_clock()->now();
+        tracking_header.frame_id = "camera";
+        sensor_msgs::msg::Image tracking_pub_msg;
+        cv_bridge::CvImage tracking_cv_img;
+        tracking_cv_img = cv_bridge::CvImage(tracking_header, sensor_msgs::image_encodings::RGB8, tracking_img);
+        tracking_cv_img.toImageMsg(tracking_pub_msg);
+        tracking_pub_->publish(tracking_pub_msg);
+      }
     }
 };
 
