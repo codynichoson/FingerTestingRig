@@ -23,6 +23,7 @@ install(DIRECTORY msg srv DESTINATION share/${PROJECT_NAME})
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/GoToPose.srv"
+  "srv/SetGripper.srv"
  )
 
 ament_export_dependencies(rosidl_default_runtime)
