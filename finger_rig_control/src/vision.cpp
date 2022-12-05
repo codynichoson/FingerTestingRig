@@ -231,7 +231,6 @@ class Vision : public rclcpp::Node
       cv::Mat contour_output = mask.clone();
       // cv::findContours(contour_output, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE);
       cv::findContours(contour_output, contours, hierarchy, cv::RETR_TREE, cv::CHAIN_APPROX_NONE);
-      // RCLCPP_INFO(this->get_logger(), "contours.size: %ld", contours.size());
 
       // Filter out any small or large contours
       std::vector<std::vector<cv::Point>> big_contours;
@@ -242,8 +241,6 @@ class Vision : public rclcpp::Node
           big_contours.push_back(contours[i]);
         }
       }
-
-      // RCLCPP_INFO(this->get_logger(), "big_contours.size: %ld", big_contours.size());
 
       // Find centroids
       std::vector<cv::Moments> mu(big_contours.size());
@@ -260,10 +257,6 @@ class Vision : public rclcpp::Node
         centroids.push_back(cv::Point2f(mu[i].m10/mu[i].m00 , mu[i].m01/mu[i].m00)); 
         // centroids[i] = cv::Point2f(mu[i].m10/mu[i].m00 , mu[i].m01/mu[i].m00); 
       }
-
-      // global_centroids = centroids;
-
-      // RCLCPP_INFO(this->get_logger(), "centroids length: %ld", centroids.size());
 
       // Draw contours on color image
       cv::Mat drawing = color_img.clone();
@@ -305,20 +298,6 @@ class Vision : public rclcpp::Node
 
     void track_fiducials_custom()
     {
-      // We have starting centroids from centroid detection
-
-      // Initial
-        // Save first centroids into old_centroids in certain order
-        // Initialize bounding boxes with old_centroids
-
-      // Loop
-        // Compare new_centroids with old_centroids
-        // Loop through
-        // new_centroids that is closest to old_centroid becomes new old_centroid
-
-      // old_centroids get turned into bounding boxes and drawn
-
-      // std::vector<cv::Point2f> old_centroids;
       std::vector<cv::Point2f> new_centroids;
       std::vector<cv::Point2f> placeholder_centroids;
 
@@ -367,11 +346,6 @@ class Vision : public rclcpp::Node
 
         old_centroids = placeholder_centroids;
 
-
-        RCLCPP_INFO(this->get_logger(), "0 old.x: %f, old.y: %f", old_centroids[0].x, old_centroids[0].y);
-        RCLCPP_INFO(this->get_logger(), "1 old.x: %f, old.y: %f", old_centroids[1].x, old_centroids[1].y);
-        RCLCPP_INFO(this->get_logger(), "2 old.x: %f, old.y: %f", old_centroids[2].x, old_centroids[2].y);
-
         // Update bboxes
         bboxes.clear();
         for (unsigned long int i = 0; i < old_centroids.size(); i++)
@@ -383,11 +357,7 @@ class Vision : public rclcpp::Node
           bbox.width = bbox_size;
           bbox.height = bbox_size;
           bboxes.push_back(bbox);
-
-          // RCLCPP_INFO(this->get_logger(), "%ld bbox.x: %d, bbox.y: %d", i, bbox.x, bbox.y);
         }
-
-        RCLCPP_INFO(this->get_logger(), "BBOXES.SIZE: %ld", bboxes.size());
       }
 
       cv::Mat tracking_img = mask_bgr.clone();
@@ -408,12 +378,6 @@ class Vision : public rclcpp::Node
       tracking_cv_img = cv_bridge::CvImage(tracking_header, sensor_msgs::image_encodings::RGB8, tracking_img);
       tracking_cv_img.toImageMsg(tracking_pub_msg);
       tracking_pub_->publish(tracking_pub_msg);
-    }
-
-    double euclideanDist(cv::Point2f& a, cv::Point2f& b)
-    {
-      cv::Point2f diff = a - b;
-      return cv::sqrt(diff.x*diff.x + diff.y*diff.y);
     }
 
     void track_fiducials_opencv()
