@@ -235,17 +235,21 @@ class Vision : public rclcpp::Node
       std::vector<std::vector<cv::Point>> contours;
       std::vector<cv::Vec4i> hierarchy;
       cv::Mat contour_output = mask.clone();
-      cv::findContours(contour_output, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE);
+      // cv::findContours(contour_output, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE);
+      cv::findContours(contour_output, contours, hierarchy, cv::RETR_TREE, cv::CHAIN_APPROX_NONE);
+      RCLCPP_INFO(this->get_logger(), "contours.size: %ld", contours.size());
 
       // Filter out any small or large contours
       std::vector<std::vector<cv::Point>> big_contours;
       for (long unsigned int i = 0; i < contours.size(); i++)
       {
-        if (cv::contourArea(contours[i]) > 5000 && cv::contourArea(contours[i]) < 25000)
+        if (cv::contourArea(contours[i]) > 5000 && cv::contourArea(contours[i]) < 35000)
         {
           big_contours.push_back(contours[i]);
         }
       }
+
+      RCLCPP_INFO(this->get_logger(), "big_contours.size: %ld", big_contours.size());
 
       // Find centroids
       std::vector<cv::Moments> mu(big_contours.size());
@@ -255,10 +259,15 @@ class Vision : public rclcpp::Node
       }
 
       // std::vector<cv::Point2f> centroids(big_contours.size());
+      centroids.clear();
+      
       for(long unsigned int i = 0; i < big_contours.size(); i++)
       {
         centroids.push_back(cv::Point2f(mu[i].m10/mu[i].m00 , mu[i].m01/mu[i].m00)); 
+        // centroids[i] = cv::Point2f(mu[i].m10/mu[i].m00 , mu[i].m01/mu[i].m00); 
       }
+
+      // global_centroids = centroids;
 
       RCLCPP_INFO(this->get_logger(), "centroids length: %ld", centroids.size());
 
@@ -349,8 +358,11 @@ class Vision : public rclcpp::Node
         for(unsigned i=0; i<multiTracker->getObjects().size(); i++)
         {
           // bboxes[i] = multiTracker->getObjects()[i];
+
+          RCLCPP_INFO(this->get_logger(), "object_x: %f, object_y: %f", multiTracker->getObjects()[i].x, multiTracker->getObjects()[i].y);
           
-          cv::rectangle(tracking_img, bboxes[i], cv::Scalar(0, 255, 0), 20);
+          // cv::rectangle(tracking_img, bboxes[i], cv::Scalar(0, 255, 0), 20);
+          cv::rectangle(tracking_img, multiTracker->getObjects()[i], cv::Scalar(0, 255, 0), 20);
         }
 
         // Publish tracking image
