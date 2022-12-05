@@ -68,8 +68,16 @@ class Vision : public rclcpp::Node
     cv::Mat cropped_gray_img;
     cv::Mat finger_mask;
     cv::Mat mask;
+    cv::Mat mask_bgr;
+
+    std::vector<cv::Point2f> centroids;
+    std::vector<cv::Rect> bboxes;
+    std::vector<cv::Point> centers;
+    cv::Ptr<cv::legacy::tracking::MultiTracker> multiTracker;
+    cv::Rect ex_rect, ex_rect2;
 
     bool initialize = true;
+    bool first_time = true;
 
     void image_sub_callback(const sensor_msgs::msg::Image::SharedPtr msg)
     {
@@ -99,7 +107,19 @@ class Vision : public rclcpp::Node
       find_finger();
       threshold_img();
       find_contours();
-      // track_contours();
+      track_contours();
+
+      // if (initialize == true)
+      // {
+      //   // find_finger();
+      //   // threshold_img();
+      //   // find_contours();
+      //   initialize = false;
+      // }
+      // else
+      // {
+      //   track_contours();
+      // }
     }
 
     void find_finger()
@@ -136,10 +156,10 @@ class Vision : public rclcpp::Node
         mu[i] = cv::moments(final_contour[i], false);
       }
 
-      std::vector<cv::Point2f> mc(final_contour.size());
+      std::vector<cv::Point2f> finger_centroid(final_contour.size());
       for(long unsigned int i = 0; i < final_contour.size(); i++)
       {
-        mc[i] = cv::Point2f(mu[i].m10/mu[i].m00 , mu[i].m01/mu[i].m00); 
+        finger_centroid[i] = cv::Point2f(mu[i].m10/mu[i].m00 , mu[i].m01/mu[i].m00); 
       }
 
       // Draw contour
@@ -148,17 +168,17 @@ class Vision : public rclcpp::Node
       // for (long unsigned int i = 0; i < final_contour.size(); i++)
       // {
       //   // cv::drawContours(finger_show, final_contour, i, color, cv::LINE_AA, 10);
-      //   cv::circle(finger_show, mc[i], 930, color, 30, 30, 0);
+      //   cv::circle(finger_show, centroids[i], 930, color, 30, 30, 0);
       // }
 
       // Create black image with white circle to use for cropping finger circle out of color image
       // Type is CV_8UC3, 8 = bits per pixel, U = unsigned int (0-255), C3 = 3 channels per pixel
       cv::Mat circle_mask = cv::Mat::zeros(cv::Size(finger_show.cols, finger_show.rows), CV_8UC3);
       cv::Point center;
-      center.x = mc[0].x;
-      center.y = mc[0].y;
+      center.x = finger_centroid[0].x;
+      center.y = finger_centroid[0].y;
       cv::Scalar white(255, 255, 255);
-      cv::circle(circle_mask, mc[0], 920, white, -1);
+      cv::circle(circle_mask, finger_centroid[0], 920, white, -1);
 
       // Crop color image (finger_show) to only include area where fingertip is
       cv::bitwise_and(circle_mask, finger_show, finger_show);
@@ -196,6 +216,8 @@ class Vision : public rclcpp::Node
       cv::dilate(mask, mask, element, cv::Point(-1, -1), 4, 1, 1);
       cv::erode(mask, mask, cv::Mat(), cv::Point(-1, -1), 1, 1, 1);
 
+      cv::cvtColor(mask, mask_bgr, cv::COLOR_GRAY2BGR);
+
       // Publish mask image
       std_msgs::msg::Header header;
       header.stamp = this->get_clock()->now();
@@ -232,11 +254,13 @@ class Vision : public rclcpp::Node
         mu[i] = cv::moments(big_contours[i], false);
       }
 
-      std::vector<cv::Point2f> mc(big_contours.size());
+      // std::vector<cv::Point2f> centroids(big_contours.size());
       for(long unsigned int i = 0; i < big_contours.size(); i++)
       {
-        mc[i] = cv::Point2f(mu[i].m10/mu[i].m00 , mu[i].m01/mu[i].m00); 
+        centroids.push_back(cv::Point2f(mu[i].m10/mu[i].m00 , mu[i].m01/mu[i].m00)); 
       }
+
+      RCLCPP_INFO(this->get_logger(), "centroids length: %ld", centroids.size());
 
       // Draw contours on color image
       cv::Mat drawing = color_img.clone();
@@ -262,7 +286,7 @@ class Vision : public rclcpp::Node
       for (long unsigned int i = 0; i < big_contours.size(); i++)
       {
         cv::drawContours(drawing, big_contours, i, colors[i % 6], cv::LINE_AA, 8);
-        cv::circle(drawing, mc[i], 20, black, -1, 8, 0);
+        cv::circle(drawing, centroids[i], 20, black, -1, 8, 0);
       }
 
       // Publish image with contours drawn
@@ -278,43 +302,55 @@ class Vision : public rclcpp::Node
 
     void track_contours()
     {
-      // Specify the tracker type
-      // std::string trackingType = "KCF";
-      // std::string trackerType = "SSSCSRT";
-
-      // Create multitracker
-      cv::Ptr<cv::legacy::tracking::MultiTracker> multiTracker = cv::legacy::tracking::MultiTracker::create();
-
-      // Create bounding boxes
-      std::vector<cv::Rect> bboxes;
-      cv::Rect rect1;
-      rect1.x = 1000;
-      rect1.y = 1000;
-      rect1.width = 200;
-      rect1.height = 200;
-      bboxes.push_back(rect1);
-
       // Initialize the tracker
-      if (initialize == true)
+      if (first_time == true)
       {
+        // Create multitracker
+        multiTracker = cv::legacy::tracking::MultiTracker::create();
+
+        int bbox_size = 200;
+
+        RCLCPP_INFO(this->get_logger(), "centroids length2: %ld", centroids.size());
+
+        for (long unsigned int i = 0; i < centroids.size(); i++)
+        {
+          cv::Rect bbox;
+          bbox.x = centroids[i].x - bbox_size/2;
+          bbox.y = centroids[i].y - bbox_size/2;
+          bbox.width = bbox_size;
+          bbox.height = bbox_size;
+          bboxes.push_back(bbox);
+        }
+
+        RCLCPP_INFO(this->get_logger(), "bboxes length: %ld", bboxes.size());
+
         // Initialize multitracker
-        cv::Ptr<cv::legacy::tracking::Tracker> tracker = cv::legacy::tracking::TrackerCSRT::create();
+        cv::Ptr<cv::legacy::tracking::Tracker> tracker = cv::legacy::tracking::TrackerKCF::create();
+
         for(long unsigned int i=0; i < bboxes.size(); i++)
-          multiTracker->add(tracker, mask, cv::Rect2d(bboxes[i]));
+        {
+          multiTracker->add(tracker, mask_bgr, cv::Rect2d(bboxes[i]));
+          RCLCPP_INFO(this->get_logger(), "Added tracker to multitracker");
+        }
+        first_time = false;
       }
       else
       {
         // Update the tracking result
-        multiTracker->update(mask);
+        multiTracker->update(mask_bgr);
 
-        cv::Mat tracking_img = color_img.clone();
+        cv::Mat tracking_img = mask_bgr.clone();
 
         cv::Scalar green(0, 255, 0);
     
         // Draw the tracked objects
+        RCLCPP_INFO(this->get_logger(), "multiTracker.getobjects.size: %ld", multiTracker->getObjects().size());
+
         for(unsigned i=0; i<multiTracker->getObjects().size(); i++)
         {
-          cv::rectangle(tracking_img, multiTracker->getObjects()[i], green, 2, 1);
+          // bboxes[i] = multiTracker->getObjects()[i];
+          
+          cv::rectangle(tracking_img, bboxes[i], cv::Scalar(0, 255, 0), 20);
         }
 
         // Publish tracking image
