@@ -2,6 +2,10 @@
 
 #### Project completed by Cody Nichoson
 
+<!-- <p align="center">
+  <img src="" width="600"/>
+</p> -->
+
 ### Project Description
 This project served as a final project in Northwestern University's MS in Robotics sequence in 2022. The goal of the project was to produce an automated system capable of collecting biomimetic fingertip manipulation data and the fingertip deformation associated with it. The project is structured as a ROS2 package written in C++.
 
@@ -43,6 +47,16 @@ The package is composed of several specialized ROS2 C++ packages:
 #### Vimba SDK
 To install Vimba, follow the installation instructions from Allied Vision's website (https://www.alliedvision.com/en/products/vimba-sdk/#c1497). Vimba version 6.0.0 for Ubuntu LTS 20.04 was used for this project (even though it was done on an Ubuntu 22.04 system).
 
+#### avt_vimba_camera
+
+#### franka_ros2
+
+#### MoveIt 2
+
+#### OpenCV 4.6.0
+
+#### cv_bridge (from vision_opencv)
+
 ### Create Workspace and Build Package
 In order to use the package, it must be housed within the `src` directory of a colcon workspace alongside the `avt_vimba_camera` package.
  
@@ -70,3 +84,55 @@ In order to use the package, it must be housed within the `src` directory of a c
  cd ..
  colcon build
  ```
+ 
+ ### Run Package
+  1. Source ROS2 workspace (from root of workspace)
+  ```
+  source install/setup.bash
+  ```
+  
+  2.1 Launch the package (for pure Rviz simulation, no real robot)
+  ```
+  ros2 launch FingerTestingRig finger_rig.launch.py
+  ```
+  
+  2.2 Launch the package (for real robot)
+  ```
+  ros2 launch FingerTestingRig finger_rig_real.launch.py
+  ```
+  
+  ### Run Robot Services
+<!--   <p align="center">
+    <img src="file:///home/cody/codynichoson.github.io/images/franka_services_4x_speed_labeled.gif" width="600"/>
+  </p> -->
+
+  1. To run the services in this package, first open a new terminal window, then source the ROS2 workspace in the new window
+  ```
+  source install/setup.bash
+  ```
+
+  2. To send the robot to its "ready" pose defined by Franka, run the following
+  ```
+  ros2 service call /home std_srvs/srv/Empty
+  ```
+
+  3. To send the robot to its "extended" pose defined by Franka, run the following
+  ```
+  ros2 service call /extend std_srvs/srv/Empty
+  ```
+
+  4. To have the robot perform the various motion profiles for the finger testing, run any of the following.
+  NOTE: The robot does not inherently know the location of the testing rig and sliding platform currently, the
+  robot motion profiles were based on the position and orientation of the testing fixture seen in the included
+  images.
+
+  ```
+  For back and forth linear motion profile:
+  ros2 service call /linear std_srvs/srv/Empty
+
+  For rectangular motion profile:
+  ros2 service call /rectangle std_srvs/srv/Empty
+
+  For circular motion profile:
+  ros2 service call /circle std_srvs/srv/Empty
+  ```
