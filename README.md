@@ -15,6 +15,7 @@ This project was advised by [Dr. Matthew Elwin](https://robotics.northwestern.ed
 
 ### General Software
 * <a href="https://releases.ubuntu.com/22.04/" target="_blank">Ubuntu 22.04 Jammy Jellyfish</a>
+* [Ubuntu](https://releases.ubuntu.com/22.04/){:target="_blank"}
 * <a href="https://docs.ros.org/en/humble/index.html" target="_blank">ROS2 Humble Hawksbill</a>
   
 ### Software Dependencies
