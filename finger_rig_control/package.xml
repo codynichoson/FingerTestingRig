@@ -19,6 +19,8 @@
   <depend>moveit_msgs</depend>
   <depend>finger_rig_msgs</depend>
   <depend>shape_msgs</depend>
+  <depend>rclcpp_action</depend>
+  <depend>franka_msgs</depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>

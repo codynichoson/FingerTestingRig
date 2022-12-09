@@ -22,7 +22,8 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
   moveit_msgs
   finger_rig_msgs
   shape_msgs
-  # rosidl_default_generators
+  rclcpp_action
+  franka_msgs
 )
 
 foreach(Dependency IN ITEMS ${THIS_PACKAGE_INCLUDE_DEPENDS})
@@ -33,7 +34,7 @@ add_executable(environment src/environment.cpp)
 ament_target_dependencies(environment rclcpp std_msgs std_srvs moveit_ros_planning_interface moveit_msgs finger_rig_msgs shape_msgs)
 
 add_executable(motion_control src/motion_control.cpp)
-ament_target_dependencies(motion_control rclcpp std_msgs std_srvs moveit_ros_planning_interface moveit_msgs finger_rig_msgs)
+ament_target_dependencies(motion_control rclcpp std_msgs std_srvs moveit_ros_planning_interface moveit_msgs finger_rig_msgs rclcpp_action franka_msgs)
 
 add_executable(vision src/vision.cpp)
 ament_target_dependencies(vision rclcpp std_msgs sensor_msgs cv_bridge OpenCV std_srvs)

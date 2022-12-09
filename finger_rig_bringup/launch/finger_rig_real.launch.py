@@ -12,8 +12,6 @@ from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 import yaml
 
-
-
 def generate_launch_description():
     franka_xacro_file = os.path.join(get_package_share_directory('franka_description'), 'robots',
                                      'panda_arm.urdf.xacro')
@@ -95,7 +93,7 @@ def generate_launch_description():
         [rviz_node,
          static_tf_node,
          camera_launch_file,
-         environment_node,
+        #  environment_node,
          motion_control_node,
          vision_node
          ]
