@@ -14,10 +14,8 @@ This project was advised by [Dr. Matthew Elwin](https://robotics.northwestern.ed
   * https://www.edmundoptics.com/p/allied-vision-alvium-1800-u-500c-125-50mp-c-mount-usb-31-color-camera/42324/
 
 ### General Software
-* Ubuntu 22.04
-  * https://releases.ubuntu.com/22.04/
-* ROS2 Humble Hawksbill
-  * https://docs.ros.org/en/humble/index.html
+* <a href="https://releases.ubuntu.com/22.04/" target="_blank">Ubuntu 22.04 Jammy Jellyfish</a>
+* <a href="https://docs.ros.org/en/humble/index.html" target="_blank">ROS2 Humble Hawksbill</a>
   
 ### Software Dependencies
 * Allied Vision Vimba
