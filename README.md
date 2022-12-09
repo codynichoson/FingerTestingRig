@@ -1,6 +1,7 @@
 # Automated Biomimetic Fingertip Deformation Data Collection Using Computer Vision and Robotic Manipulation
-
-#### Project completed by Cody Nichoson
+<p align="center">
+  See more on my portfolio: https://codynichoson.com/fingerrig.html
+</p>
 
 <p align="center">
   <img src="https://github.com/codynichoson/FingerTestingRig/blob/main/images/fingerrig_3x_speed_labeled.gif?raw=true" width="600"/>
