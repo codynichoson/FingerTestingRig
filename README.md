@@ -2,9 +2,9 @@
 
 #### Project completed by Cody Nichoson
 
-<!-- <p align="center">
-  <img src="" width="600"/>
-</p> -->
+<p align="center">
+  <img src="https://github.com/codynichoson/FingerTestingRig/blob/main/images/fingerrig_3x_speed_labeled.gif?raw=true" width="600"/>
+</p>
 
 ### Project Description
 This project served as a final project in Northwestern University's MS in Robotics sequence in 2022. The goal of the project was to produce an automated system capable of collecting biomimetic fingertip manipulation data and the fingertip deformation associated with it. The project is structured as a ROS2 package written in C++.
@@ -12,8 +12,15 @@ This project served as a final project in Northwestern University's MS in Roboti
 This project was advised by [Dr. Matthew Elwin](https://robotics.northwestern.edu/people/profiles/faculty/elwin-matt.html), [Dr. Ed Colgate](https://www.mccormick.northwestern.edu/research-faculty/directory/profiles/colgate-edward.html), and [Dr. Kevin Lynch](https://www.mccormick.northwestern.edu/research-faculty/directory/profiles/lynch-kevin.html).
 
 ### Hardware
-* <a href="https://www.franka.de/" target="_blank">Franka Emika Panda Manipulator Arm</a>
-* <a href="https://www.edmundoptics.com/p/allied-vision-alvium-1800-u-500c-125-50mp-c-mount-usb-31-color-camera/42324/)" target="_blank">Allied Vision Alvium 1800 U-500c, 1/2.5" 5.0MP C-Mount, USB 3.1 Color Camera</a>
+* [Franka Emika Panda Manipulator Arm](https://www.franka.de/)
+* [Allied Vision Alvium 1800 U-500c, 1/2.5" 5.0MP C-Mount, USB 3.1 Color Camera](https://www.edmundoptics.com/p/allied-vision-alvium-1800-u-500c-125-50mp-c-mount-usb-31-color-camera/42324/)
+* Custom Testing Fixture
+
+<p float="left" align="center">
+  <img src="https://github.com/codynichoson/FingerTestingRig/blob/main/images/franka.JPG?raw=true" width=32% />
+  <img src="https://github.com/codynichoson/FingerTestingRig/blob/main/images/alliedvisioncam.jpg?raw=true" width=32% />
+  <img src="https://github.com/codynichoson/FingerTestingRig/blob/main/images/whole_finger_rig.JPG?raw=true" width=32% />
+</p>
 
 ### General Software
 * <a href="https://releases.ubuntu.com/22.04/" target="_blank">Ubuntu 22.04 Jammy Jellyfish</a>
@@ -102,9 +109,9 @@ In order to use the package, it must be housed within the `src` directory of a c
   ```
   
   ### Run Robot Services
-<!--   <p align="center">
-    <img src="file:///home/cody/codynichoson.github.io/images/franka_services_4x_speed_labeled.gif" width="600"/>
-  </p> -->
+  <p align="center">
+    <img src="https://github.com/codynichoson/FingerTestingRig/blob/main/images/franka_services_4x_speed_labeled.gif?raw=true" width="600"/>
+  </p>
 
   1. To run the services in this package, first open a new terminal window, then source the ROS2 workspace in the new window
   ```
@@ -136,3 +143,18 @@ In order to use the package, it must be housed within the `src` directory of a c
   For circular motion profile:
   ros2 service call /circle std_srvs/srv/Empty
   ```
+  
+  <p align="center">
+    <img src="https://github.com/codynichoson/FingerTestingRig/blob/main/images/wideview_linear_labeled.gif?raw=true" width="600"/>
+  </p>
+  
+  <p align="center">
+    <img src="https://github.com/codynichoson/FingerTestingRig/blob/main/images/paper_tracking_test.gif?raw=true" width="600"/>
+  </p>
+  
+  <p align="center">
+    <img src="https://github.com/codynichoson/FingerTestingRig/blob/main/images/finger_tracking_test.gif?raw=true" width="600"/>
+  </p>
+  
+  
+  
