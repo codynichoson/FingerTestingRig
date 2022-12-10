@@ -56,14 +56,24 @@ The package is composed of several specialized ROS2 C++ packages:
 To install Vimba, follow the installation instructions from Allied Vision's website (https://www.alliedvision.com/en/products/vimba-sdk/#c1497). Vimba version 6.0.0 for Ubuntu LTS 20.04 was used for this project (even though it was done on an Ubuntu 22.04 system).
 
 #### avt_vimba_camera
+In order to use the `avt_vimba_camera` ROS driver for the Allied Vision Vimba SDK, see the cloning instructions below in the Create Workspace and Build Package section.
 
 #### franka_ros2
+This package utilized the `franka_ros2` fork created by Dr. Matthew Elwin located within the `numsr_patches` repository. To use this repo and the included `franka_ros2` package, follow the instructions at https://github.com/m-elwin/numsr_patches.
 
 #### MoveIt 2
+Download and build the MoveIt source code using their installation instructions at https://moveit.picknik.ai/humble/doc/tutorials/getting_started/getting_started.html.
 
 #### OpenCV 4.6.0
+To install OpenCV, run the following:
+```
+sudo apt update
+sudo apt install libopencv-dev python3-opencv
+```
+This project utilized OpenCV 4.6.0. More information on this specific version can be found at https://opencv.org/opencv-4-6-0/.
 
 #### cv_bridge (from vision_opencv)
+Follow the installation instructions for `vision_opencv` at https://github.com/ros-perception/vision_opencv/tree/humble/cv_bridge.
 
 ### Create Workspace and Build Package
 In order to use the package, it must be housed within the `src` directory of a colcon workspace alongside the `avt_vimba_camera` package.
